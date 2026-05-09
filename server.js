@@ -43,6 +43,14 @@ db.connect(err => {
   }
 });
 
+db.query("SELECT 1", (err, result) => {
+  if (err) {
+    console.log("❌ ERROR CONEXIÓN:", err);
+  } else {
+    console.log("✅ CONEXIÓN OK");
+  }
+});
+
 
 app.use(cors());
 app.use(express.json());
