@@ -15,11 +15,13 @@ const db = mysql.createPool({
   queueLimit: 0
 });
 
-db.connect(err => {
+db.query("SELECT 1", (err, result) => {
   if (err) {
-    console.log("Error conexión:", err);
+    console.log("❌ ERROR CONEXIÓN:", err);
   } else {
-    console.log("Conectado a MySQL");
+    console.log("✅ CONEXIÓN OK");
+  }
+});
 
     db.query(`
       CREATE TABLE IF NOT EXISTS ventas (
@@ -40,8 +42,6 @@ db.connect(err => {
       if (err) console.log("Error creando tabla:", err);
       else console.log("Tabla lista");
     });
-  }
-});
 
 db.query("SELECT 1", (err, result) => {
   if (err) {
