@@ -4,10 +4,9 @@ const mysql = require("mysql2");
 
 const app = express();
 
+console.log("MYSQL_URL:", process.env.MYSQL_URL);
 
 const db = mysql.createPool(process.env.MYSQL_URL);
-
-console.log("MYSQL_URL:", process.env.MYSQL_URL);
 
 db.query("SELECT 1", (err) => {
   if (err) console.log("❌ ERROR:", err);
