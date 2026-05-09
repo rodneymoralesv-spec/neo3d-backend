@@ -5,10 +5,11 @@ const mysql = require("mysql2");
 const app = express();
 
 const db = mysql.createConnection({
-  host: "localhost",
-  user: "root",
-  password: "",
-  database: "neo3d"
+  host: process.env.MYSQLHOST,
+  user: process.env.MYSQLUSER,
+  password: process.env.MYSQLPASSWORD,
+  database: process.env.MYSQLDATABASE,
+  port: process.env.MYSQLPORT
 });
 
 db.connect((err) => {
@@ -108,6 +109,8 @@ app.get("/ventas", (req, res) => {
 });
 
 
-app.listen(3001, () => {
-  console.log("Servidor corriendo en puerto 3001");
+const PORT = process.env.PORT || 3001;
+
+app.listen(PORT, () => {
+  console.log("Servidor corriendo en puerto", PORT);
 });
