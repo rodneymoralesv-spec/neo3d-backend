@@ -71,6 +71,12 @@ app.post("/ventas", (req, res) => {
     fecha
   } = req.body;
 
+  // 🔥 CONVERSIÓN CORRECTA DE FECHA
+  const fechaMySQL = new Date(fecha)
+    .toISOString()
+    .slice(0, 19)
+    .replace("T", " ");
+
   const sql = `
     INSERT INTO ventas
     (
@@ -102,14 +108,15 @@ app.post("/ventas", (req, res) => {
       precioTotal,
       ajustado,
       pagado,
-      fecha
+      fechaMySQL // ✅ ahora sí existe
     ],
     (err, result) => {
 
       if (err) {
-        console.log(err);
+        console.log("❌ ERROR INSERT:", err);
         res.status(500).send("Error guardando venta");
       } else {
+        console.log("✅ Venta insertada:", result.insertId);
         res.status(201).json({ message: "Venta guardada" });
       }
 
@@ -117,6 +124,7 @@ app.post("/ventas", (req, res) => {
   );
 
 });
+
 
 app.get("/ventas", (req, res) => {
 
