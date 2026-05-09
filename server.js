@@ -6,7 +6,6 @@ const app = express();
 
 console.log("MYSQL_URL:", process.env.MYSQL_URL);
 
-const mysql = require("mysql2");
 
 const db = mysql.createPool(process.env.MYSQL_URL).promise();
 
