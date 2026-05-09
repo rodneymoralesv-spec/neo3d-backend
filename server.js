@@ -134,7 +134,7 @@ app.get("/ventas", (req, res) => {
 
     if (err) {
       console.log(err);
-      res.status(500).send("Error obteniendo ventas");
+      res.status(500).json({ error: err.message });
     } else {
       res.json(result);
     }
@@ -143,6 +143,38 @@ app.get("/ventas", (req, res) => {
 
 });
 
+app.put("/ventas/:id", (req, res) => {
+  const { id } = req.params;
+  const { pagado } = req.body;
+
+  const sql = "UPDATE ventas SET pagado = ? WHERE id = ?";
+
+  db.query(sql, [pagado, id], (err, result) => {
+    if (err) {
+      console.log("❌ ERROR UPDATE:", err);
+      res.status(500).send("Error actualizando venta");
+    } else {
+      console.log("💰 Venta actualizada:", id, pagado);
+      res.json({ message: "Venta actualizada" });
+    }
+  });
+});
+
+app.delete("/ventas/:id", (req, res) => {
+  const { id } = req.params;
+
+  const sql = "DELETE FROM ventas WHERE id = ?";
+
+  db.query(sql, [id], (err, result) => {
+    if (err) {
+      console.log("❌ ERROR DELETE:", err);
+      res.status(500).send("Error eliminando venta");
+    } else {
+      console.log("🗑️ Venta eliminada:", id);
+      res.json({ message: "Venta eliminada" });
+    }
+  });
+});
 
 const PORT = process.env.PORT || 3001;
 
