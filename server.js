@@ -7,6 +7,8 @@ const app = express();
 
 const db = mysql.createPool(process.env.MYSQL_URL);
 
+console.log("MYSQL_URL:", process.env.MYSQL_URL);
+
 db.query("SELECT 1", (err) => {
   if (err) console.log("❌ ERROR:", err);
   else console.log("✅ CONECTADO");
