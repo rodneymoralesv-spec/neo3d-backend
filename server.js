@@ -46,6 +46,11 @@ db.query("SELECT 1", (err, result) => {
 app.use(cors());
 app.use(express.json());
 
+app.use((req, res, next) => {
+  res.setHeader("Cache-Control", "no-store");
+  next();
+});
+
 app.get("/", (req, res) => {
   res.send("Backend Neo3D funcionando 🚀");
 });
@@ -105,7 +110,7 @@ app.post("/ventas", (req, res) => {
         console.log(err);
         res.status(500).send("Error guardando venta");
       } else {
-        res.send("Venta guardada 🚀");
+        res.status(201).json({ message: "Venta guardada" });
       }
 
     }
