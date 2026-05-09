@@ -12,11 +12,31 @@ const db = mysql.createConnection({
   port: process.env.MYSQLPORT
 });
 
-db.connect((err) => {
+db.connect(err => {
   if (err) {
-    console.log("Error conexión MySQL:", err);
+    console.log("Error conexión:", err);
   } else {
-    console.log("MySQL conectado 🚀");
+    console.log("Conectado a MySQL");
+
+    db.query(`
+      CREATE TABLE IF NOT EXISTS ventas (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        nombre VARCHAR(255),
+        cliente VARCHAR(255),
+        gramos FLOAT,
+        horas FLOAT,
+        manoDeObra FLOAT,
+        cantidad INT,
+        precioUnit FLOAT,
+        precioTotal FLOAT,
+        ajustado BOOLEAN,
+        pagado BOOLEAN,
+        fecha DATETIME
+      )
+    `, (err) => {
+      if (err) console.log("Error creando tabla:", err);
+      else console.log("Tabla lista");
+    });
   }
 });
 
