@@ -4,23 +4,12 @@ const mysql = require("mysql2");
 
 const app = express();
 
-const db = mysql.createPool({
-  host: process.env.MYSQLHOST,
-  user: process.env.MYSQLUSER,
-  password: process.env.MYSQLPASSWORD,
-  database: process.env.MYSQLDATABASE,
-  port: process.env.MYSQLPORT,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
-});
 
-db.query("SELECT 1", (err, result) => {
-  if (err) {
-    console.log("❌ ERROR CONEXIÓN:", err);
-  } else {
-    console.log("✅ CONEXIÓN OK");
-  }
+const db = mysql.createPool(process.env.MYSQL_URL);
+
+db.query("SELECT 1", (err) => {
+  if (err) console.log("❌ ERROR:", err);
+  else console.log("✅ CONECTADO");
 });
 
     db.query(`
