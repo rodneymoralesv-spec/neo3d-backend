@@ -34,6 +34,26 @@ db.query("SELECT 1", (err) => {
       else console.log("Tabla lista");
     });
 
+    db.query(`
+  CREATE TABLE IF NOT EXISTS gastos (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    descripcion VARCHAR(255),
+    categoria VARCHAR(100),
+    monto FLOAT,
+    fecha DATETIME
+  )
+`);
+
+db.query(`
+  CREATE TABLE IF NOT EXISTS catalogo (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(255),
+    gramos FLOAT,
+    horas FLOAT,
+    manoDeObra FLOAT
+  )
+`);
+
 db.query("SELECT 1", (err, result) => {
   if (err) {
     console.log("❌ ERROR CONEXIÓN:", err);
@@ -70,6 +90,51 @@ app.post("/ventas", (req, res) => {
     pagado,
     fecha
   } = req.body;
+
+  app.get("/catalogo", (req, res) => {
+  db.query("SELECT * FROM catalogo", (err, result) => {
+    if (err) return res.status(500).send(err);
+    res.json(result);
+  });
+});
+
+app.post("/catalogo", (req, res) => {
+  const { nombre, gramos, horas, manoDeObra } = req.body;
+
+  db.query(
+    "INSERT INTO catalogo (nombre, gramos, horas, manoDeObra) VALUES (?, ?, ?, ?)",
+    [nombre, gramos, horas, manoDeObra],
+    (err) => {
+      if (err) return res.status(500).send(err);
+      res.send("OK");
+    }
+  );
+});
+
+app.get("/gastos", (req, res) => {
+  db.query("SELECT * FROM gastos", (err, result) => {
+    if (err) return res.status(500).send(err);
+    res.json(result);
+  });
+});
+
+app.post("/gastos", (req, res) => {
+  const { descripcion, categoria, monto, fecha } = req.body;
+
+  const fechaMySQL = new Date(fecha)
+    .toISOString()
+    .slice(0, 19)
+    .replace("T", " ");
+
+  db.query(
+    "INSERT INTO gastos (descripcion, categoria, monto, fecha) VALUES (?, ?, ?, ?)",
+    [descripcion, categoria, monto, fechaMySQL],
+    (err) => {
+      if (err) return res.status(500).send(err);
+      res.send("OK");
+    }
+  );
+});
 
   // 🔥 CONVERSIÓN CORRECTA DE FECHA
   const fechaMySQL = new Date(fecha)
