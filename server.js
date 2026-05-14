@@ -75,23 +75,7 @@ app.get("/", (req, res) => {
   res.send("Backend Neo3D funcionando 🚀");
 });
 
-app.post("/ventas", (req, res) => {
-
-  const {
-    nombre,
-    cliente,
-    gramos,
-    horas,
-    manoDeObra,
-    cantidad,
-    precioUnit,
-    precioTotal,
-    ajustado,
-    pagado,
-    fecha
-  } = req.body;
-
-  app.get("/catalogo", (req, res) => {
+app.get("/catalogo", (req, res) => {
   db.query("SELECT * FROM catalogo", (err, result) => {
     if (err) return res.status(500).send(err);
     res.json(result);
@@ -135,6 +119,24 @@ app.post("/gastos", (req, res) => {
     }
   );
 });
+
+app.post("/ventas", (req, res) => {
+
+  const {
+    nombre,
+    cliente,
+    gramos,
+    horas,
+    manoDeObra,
+    cantidad,
+    precioUnit,
+    precioTotal,
+    ajustado,
+    pagado,
+    fecha
+  } = req.body;
+
+  
 
   // 🔥 CONVERSIÓN CORRECTA DE FECHA
   const fechaMySQL = new Date(fecha)
