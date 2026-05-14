@@ -248,3 +248,19 @@ const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log("Servidor corriendo en puerto", PORT);
 });
+
+app.delete("/gastos/:id", (req, res) => {
+  const { id } = req.params;
+
+  const sql = "DELETE FROM gastos WHERE id = ?";
+
+  db.query(sql, [id], (err) => {
+    if (err) {
+      console.log("❌ ERROR DELETE GASTO:", err);
+      res.status(500).send("Error eliminando gasto");
+    } else {
+      console.log("🗑️ Gasto eliminado:", id);
+      res.send("OK");
+    }
+  });
+});
