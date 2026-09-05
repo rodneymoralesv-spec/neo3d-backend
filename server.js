@@ -86,11 +86,30 @@ app.post("/catalogo", (req, res) => {
   const { nombre, gramos, horas, manoDeObra } = req.body;
 
   db.query(
-    "INSERT INTO catalogo (nombre, gramos, horas, manoDeObra) VALUES (?, ?, ?, ?)",
-    [nombre, gramos, horas, manoDeObra],
-    (err) => {
+    "SELECT id FROM catalogo WHERE LOWER(nombre) = LOWER(?) LIMIT 1",
+    [nombre],
+    (err, rows) => {
       if (err) return res.status(500).send(err);
-      res.send("OK");
+
+      if (rows.length > 0) {
+        db.query(
+          "UPDATE catalogo SET nombre = ?, gramos = ?, horas = ?, manoDeObra = ? WHERE id = ?",
+          [nombre, gramos, horas, manoDeObra, rows[0].id],
+          (err2) => {
+            if (err2) return res.status(500).send(err2);
+            res.send("OK");
+          }
+        );
+      } else {
+        db.query(
+          "INSERT INTO catalogo (nombre, gramos, horas, manoDeObra) VALUES (?, ?, ?, ?)",
+          [nombre, gramos, horas, manoDeObra],
+          (err2) => {
+            if (err2) return res.status(500).send(err2);
+            res.send("OK");
+          }
+        );
+      }
     }
   );
 });
