@@ -54,6 +54,22 @@ db.query(`
   )
 `);
 
+db.query(`
+  CREATE TABLE IF NOT EXISTS configuracion (
+    id INT PRIMARY KEY,
+    precioPorGramo FLOAT,
+    precioPorHora FLOAT,
+    porcentajeGanancia FLOAT,
+    porcentajeRodney FLOAT
+  )
+`, (err) => {
+  if (err) return console.log("Error creando tabla configuracion:", err);
+  db.query(
+    "INSERT INTO configuracion (id, precioPorGramo, precioPorHora, porcentajeGanancia, porcentajeRodney) VALUES (1, 0.02, 0.30, 0.30, 0.55) ON DUPLICATE KEY UPDATE id = id",
+    (err2) => { if (err2) console.log("Error creando configuracion por defecto:", err2); }
+  );
+});
+
 db.query("SELECT 1", (err, result) => {
   if (err) {
     console.log("❌ ERROR CONEXIÓN:", err);
@@ -110,6 +126,44 @@ app.post("/catalogo", (req, res) => {
           }
         );
       }
+    }
+  );
+});
+
+app.delete("/catalogo/:id", (req, res) => {
+  const { id } = req.params;
+
+  db.query("SELECT nombre FROM catalogo WHERE id = ?", [id], (err, rows) => {
+    if (err) return res.status(500).send(err);
+    if (rows.length === 0) return res.status(404).send("No encontrado");
+
+    db.query(
+      "DELETE FROM catalogo WHERE LOWER(nombre) = LOWER(?)",
+      [rows[0].nombre],
+      (err2) => {
+        if (err2) return res.status(500).send(err2);
+        res.send("OK");
+      }
+    );
+  });
+});
+
+app.get("/config", (req, res) => {
+  db.query("SELECT * FROM configuracion WHERE id = 1", (err, rows) => {
+    if (err) return res.status(500).send(err);
+    res.json(rows[0] || {});
+  });
+});
+
+app.put("/config", (req, res) => {
+  const { precioPorGramo, precioPorHora, porcentajeGanancia, porcentajeRodney } = req.body;
+
+  db.query(
+    "UPDATE configuracion SET precioPorGramo = ?, precioPorHora = ?, porcentajeGanancia = ?, porcentajeRodney = ? WHERE id = 1",
+    [precioPorGramo, precioPorHora, porcentajeGanancia, porcentajeRodney],
+    (err) => {
+      if (err) return res.status(500).send(err);
+      res.json({ message: "Configuración actualizada" });
     }
   );
 });
