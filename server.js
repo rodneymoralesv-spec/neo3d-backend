@@ -70,6 +70,30 @@ db.query(`
   );
 });
 
+// Piezas nuevas que esperan pasar a la pagina web.
+// Se usan cuando Rodney carga la pieza desde el celular: ahi el navegador no
+// puede escribir en la carpeta PAGINA WEB, asi que la deja aqui y despues la
+// PC la recoge con herramientas/recibir_de_app.py.
+// La foto va en base64; MEDIUMTEXT aguanta hasta 16 MB.
+db.query(`
+  CREATE TABLE IF NOT EXISTS web_pendientes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(255),
+    cat VARCHAR(50),
+    esc VARCHAR(20),
+    precio FLOAT,
+    descripcion TEXT,
+    tags TEXT,
+    foto MEDIUMTEXT,
+    gramos FLOAT,
+    horas FLOAT,
+    publicado BOOLEAN DEFAULT 0,
+    fecha DATETIME
+  )
+`, (err) => {
+  if (err) console.log("Error creando tabla web_pendientes:", err);
+});
+
 db.query("SELECT 1", (err, result) => {
   if (err) {
     console.log("❌ ERROR CONEXIÓN:", err);
@@ -80,7 +104,9 @@ db.query("SELECT 1", (err, result) => {
 
 
 app.use(cors());
-app.use(express.json());
+// 12mb: las fotos de las piezas viajan en base64 dentro del JSON y el limite
+// que trae express por defecto (100kb) las rechaza con "entity too large".
+app.use(express.json({ limit: "12mb" }));
 
 app.use((req, res, next) => {
   res.setHeader("Cache-Control", "no-store");
@@ -313,6 +339,62 @@ app.delete("/ventas/:id", (req, res) => {
       console.log("🗑️ Venta eliminada:", id);
       res.json({ message: "Venta eliminada" });
     }
+  });
+});
+
+// ── PIEZAS PENDIENTES DE PASAR A LA PAGINA WEB ──────────────────
+// Guarda una pieza cargada desde el celular.
+app.post("/web-pendientes", (req, res) => {
+  const { nombre, cat, esc, precio, descripcion, tags, foto, gramos, horas } = req.body;
+
+  if (!nombre) return res.status(400).send("Falta el nombre");
+
+  db.query(
+    `INSERT INTO web_pendientes
+     (nombre, cat, esc, precio, descripcion, tags, foto, gramos, horas, publicado, fecha)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
+    [nombre, cat || "personalizados", esc || null, precio || 0,
+     descripcion || "", tags || "", foto || null, gramos || null, horas || null,
+     new Date().toISOString().slice(0, 19).replace("T", " ")],
+    (err, result) => {
+      if (err) {
+        console.log("❌ ERROR INSERT web_pendientes:", err);
+        return res.status(500).send("Error guardando la pieza");
+      }
+      console.log("🌐 Pieza pendiente guardada:", result.insertId, nombre);
+      res.status(201).json({ id: result.insertId });
+    }
+  );
+});
+
+// Lista lo que falta publicar. ?todas=1 devuelve tambien lo ya publicado.
+app.get("/web-pendientes", (req, res) => {
+  const sql = req.query.todas
+    ? "SELECT * FROM web_pendientes ORDER BY id"
+    : "SELECT * FROM web_pendientes WHERE publicado = 0 ORDER BY id";
+  db.query(sql, (err, rows) => {
+    if (err) return res.status(500).send(err);
+    res.json(rows);
+  });
+});
+
+// La PC marca la pieza como ya publicada y suelta la foto para no ocupar espacio.
+app.put("/web-pendientes/:id/publicado", (req, res) => {
+  db.query(
+    "UPDATE web_pendientes SET publicado = 1, foto = NULL WHERE id = ?",
+    [req.params.id],
+    (err) => {
+      if (err) return res.status(500).send(err);
+      console.log("✅ Pieza publicada en la web:", req.params.id);
+      res.json({ message: "Marcada como publicada" });
+    }
+  );
+});
+
+app.delete("/web-pendientes/:id", (req, res) => {
+  db.query("DELETE FROM web_pendientes WHERE id = ?", [req.params.id], (err) => {
+    if (err) return res.status(500).send(err);
+    res.send("OK");
   });
 });
 
