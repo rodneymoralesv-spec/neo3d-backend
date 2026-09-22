@@ -14,6 +14,35 @@ db.query("SELECT 1", (err) => {
   else console.log("✅ CONECTADO");
 });
 
+// Seguimiento de pedidos: estado (por_hacer / listo / entregado), abono recibido
+// y fecha de entrega. Las ventas que ya existian quedan como 'entregado', y las
+// ya pagadas con su abono completo. Se puede correr las veces que sea: si la
+// columna ya existe MySQL avisa ER_DUP_FIELDNAME y se sigue con el paso siguiente.
+function migrarVentas() {
+  const pasos = [
+    "ALTER TABLE ventas ADD COLUMN estado VARCHAR(20) NOT NULL DEFAULT 'entregado'",
+    "ALTER TABLE ventas ADD COLUMN abono FLOAT NOT NULL DEFAULT 0",
+    "ALTER TABLE ventas ADD COLUMN fechaEntrega DATETIME NULL",
+    "UPDATE ventas SET abono = precioTotal WHERE pagado = 1 AND abono = 0",
+  ];
+  const correr = (i) => {
+    if (i >= pasos.length) return;
+    db.query(pasos[i], (err) => {
+      if (err && err.code !== "ER_DUP_FIELDNAME") console.log("Error migrando ventas:", err.message);
+      correr(i + 1);
+    });
+  };
+  correr(0);
+}
+
+const ESTADOS_OK = ["por_hacer", "listo", "entregado"];
+
+const aFechaMySQL = (valor) => {
+  if (!valor) return null;
+  const d = new Date(valor);
+  return isNaN(d) ? null : d.toISOString().slice(0, 19).replace("T", " ");
+};
+
     db.query(`
       CREATE TABLE IF NOT EXISTS ventas (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -32,6 +61,7 @@ db.query("SELECT 1", (err) => {
     `, (err) => {
       if (err) console.log("Error creando tabla:", err);
       else console.log("Tabla lista");
+      migrarVentas();
     });
 
     db.query(`
@@ -232,10 +262,14 @@ app.post("/ventas", (req, res) => {
     precioTotal,
     ajustado,
     pagado,
-    fecha
+    fecha,
+    estado,
+    abono,
+    fechaEntrega
   } = req.body;
 
-  
+  const estadoOk = ESTADOS_OK.includes(estado) ? estado : "por_hacer";
+  const abonoOk = Math.max(0, Number(abono) || 0);
 
   // 🔥 CONVERSIÓN CORRECTA DE FECHA
   const fechaMySQL = new Date(fecha)
@@ -256,9 +290,12 @@ app.post("/ventas", (req, res) => {
       precioTotal,
       ajustado,
       pagado,
-      fecha
+      fecha,
+      estado,
+      abono,
+      fechaEntrega
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   db.query(
@@ -274,7 +311,10 @@ app.post("/ventas", (req, res) => {
       precioTotal,
       ajustado,
       pagado,
-      fechaMySQL // ✅ ahora sí existe
+      fechaMySQL, // ✅ ahora sí existe
+      estadoOk,
+      abonoOk,
+      aFechaMySQL(fechaEntrega)
     ],
     (err, result) => {
 
@@ -309,18 +349,46 @@ app.get("/ventas", (req, res) => {
 
 });
 
+// Actualiza solo lo que llegue en el cuerpo: pagado, abono, estado o fechaEntrega.
+// - abono: guarda el total abonado (nunca mas que el precio) y marca pagado
+//   solo si ya cubre el precio completo.
+// - pagado: true = cobrado completo (abono = precio), false = sin cobrar (abono 0).
 app.put("/ventas/:id", (req, res) => {
   const { id } = req.params;
-  const { pagado } = req.body;
+  const { pagado, abono, estado, fechaEntrega } = req.body;
 
-  const sql = "UPDATE ventas SET pagado = ? WHERE id = ?";
+  const sets = [];
+  const vals = [];
 
-  db.query(sql, [pagado, id], (err, result) => {
+  if (abono !== undefined) {
+    const a = Math.max(0, Number(abono) || 0);
+    sets.push("abono = LEAST(?, precioTotal)", "pagado = (? >= precioTotal - 0.005)");
+    vals.push(a, a);
+  } else if (pagado !== undefined) {
+    const p = pagado ? 1 : 0;
+    sets.push("pagado = ?", "abono = IF(?, precioTotal, 0)");
+    vals.push(p, p);
+  }
+
+  if (estado !== undefined) {
+    if (!ESTADOS_OK.includes(estado)) return res.status(400).send("Estado no válido");
+    sets.push("estado = ?");
+    vals.push(estado);
+  }
+
+  if (fechaEntrega !== undefined) {
+    sets.push("fechaEntrega = ?");
+    vals.push(aFechaMySQL(fechaEntrega));
+  }
+
+  if (sets.length === 0) return res.status(400).send("Nada que actualizar");
+
+  db.query(`UPDATE ventas SET ${sets.join(", ")} WHERE id = ?`, [...vals, id], (err) => {
     if (err) {
       console.log("❌ ERROR UPDATE:", err);
       res.status(500).send("Error actualizando venta");
     } else {
-      console.log("💰 Venta actualizada:", id, pagado);
+      console.log("💰 Venta actualizada:", id, req.body);
       res.json({ message: "Venta actualizada" });
     }
   });
