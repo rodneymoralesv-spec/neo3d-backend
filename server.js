@@ -1,10 +1,25 @@
 const express = require("express");
 const cors = require("cors");
 const mysql = require("mysql2");
+const crypto = require("crypto");
 
 const app = express();
 
-console.log("MYSQL_URL:", process.env.MYSQL_URL);
+// No imprimir la URL: trae la contrasena de la base y quedaria en los logs de Render
+console.log("MYSQL_URL configurada:", Boolean(process.env.MYSQL_URL));
+
+// Clave de la app. Va en Render como variable de entorno APP_PASSWORD, nunca en
+// el codigo. Si falta, el servidor no entrega datos a nadie.
+const CLAVE_APP = process.env.APP_PASSWORD || "";
+if (!CLAVE_APP) console.log("⚠ Falta APP_PASSWORD: el servidor va a rechazar todo");
+
+const claveCorrecta = (dada) => {
+  if (!CLAVE_APP || typeof dada !== "string") return false;
+  // Comparar hashes de igual largo evita filtrar la clave por el tiempo de respuesta
+  const a = crypto.createHash("sha256").update(dada).digest();
+  const b = crypto.createHash("sha256").update(CLAVE_APP).digest();
+  return crypto.timingSafeEqual(a, b);
+};
 
 
 const db = mysql.createPool(process.env.MYSQL_URL);
@@ -141,6 +156,16 @@ app.use(express.json({ limit: "12mb" }));
 app.use((req, res, next) => {
   res.setHeader("Cache-Control", "no-store");
   next();
+});
+
+// Todo pide la clave (cabecera x-clave) salvo "/", que solo dice si el servidor
+// esta vivo. Las consultas previas de CORS (OPTIONS) ya las contesta cors() arriba.
+app.use((req, res, next) => {
+  if (req.method === "GET" && req.path === "/") return next();
+  if (!CLAVE_APP) return res.status(503).send("Falta configurar APP_PASSWORD en Render");
+  if (claveCorrecta(req.get("x-clave"))) return next();
+  // Una espera en cada intento fallido hace inutil probar claves a lo loco
+  setTimeout(() => res.status(401).send("Clave incorrecta"), 800);
 });
 
 app.get("/", (req, res) => {
