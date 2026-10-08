@@ -380,10 +380,34 @@ app.get("/ventas", (req, res) => {
 // - pagado: true = cobrado completo (abono = precio), false = sin cobrar (abono 0).
 app.put("/ventas/:id", (req, res) => {
   const { id } = req.params;
-  const { pagado, abono, estado, fechaEntrega } = req.body;
+  const { pagado, abono, estado, fechaEntrega,
+          nombre, cliente, gramos, horas, manoDeObra, cantidad, precioTotal, ajustado, fecha } = req.body;
 
   const sets = [];
   const vals = [];
+  const numero = (v) => Math.max(0, Number(v) || 0);
+
+  // Edición completa de la pieza (desde Piezas → Editar). Va antes que el abono:
+  // MySQL evalúa el SET en orden, así el abono se compara contra el precio nuevo.
+  if (nombre !== undefined)     { sets.push("nombre = ?");     vals.push(String(nombre).trim() || "Pieza sin nombre"); }
+  if (cliente !== undefined)    { sets.push("cliente = ?");    vals.push(String(cliente).trim()); }
+  if (gramos !== undefined)     { sets.push("gramos = ?");     vals.push(numero(gramos)); }
+  if (horas !== undefined)      { sets.push("horas = ?");      vals.push(numero(horas)); }
+  if (manoDeObra !== undefined) { sets.push("manoDeObra = ?"); vals.push(numero(manoDeObra)); }
+  if (ajustado !== undefined)   { sets.push("ajustado = ?");   vals.push(ajustado ? 1 : 0); }
+  if (fecha !== undefined) {
+    const f = aFechaMySQL(fecha);
+    if (!f) return res.status(400).send("Fecha no válida");
+    sets.push("fecha = ?");
+    vals.push(f);
+  }
+  if (cantidad !== undefined || precioTotal !== undefined) {
+    if (cantidad === undefined || precioTotal === undefined) return res.status(400).send("Cantidad y precio van juntos");
+    const cant = Math.max(1, Math.round(Number(cantidad) || 1));
+    const total = numero(precioTotal);
+    sets.push("cantidad = ?", "precioTotal = ?", "precioUnit = ?");
+    vals.push(cant, total, total / cant);
+  }
 
   if (abono !== undefined) {
     const a = Math.max(0, Number(abono) || 0);
